@@ -1,0 +1,217 @@
+"use client";
+
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
+
+import { resetPassword, selectAuth } from "@/store/auth/authSlice";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+
+function ResetPasswordContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const dispatch = useAppDispatch();
+  const { resetEmail, resetOtp, resetStatus, resetError } =
+    useAppSelector(selectAuth);
+  const emailParam = searchParams.get("email");
+  const otpParam = searchParams.get("otp");
+  const email = emailParam || resetEmail || "";
+  const otp = otpParam || resetOtp || "";
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [form, setForm] = useState({
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!email || !otp) {
+      router.push("/forget-password");
+    }
+  }, [email, otp, router]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLocalError(null);
+
+    if (form.newPassword !== form.confirmPassword) {
+      setLocalError("Passwords do not match.");
+      return;
+    }
+
+    if (!email || !otp) {
+      setLocalError("Missing email or OTP. Please restart the flow.");
+      return;
+    }
+
+    const result = await dispatch(
+      resetPassword({ email, otp, newPassword: form.newPassword }),
+    );
+
+    if (resetPassword.fulfilled.match(result)) {
+      router.push("/pass-changed");
+    }
+  };
+
+  return (
+    <div className="w-full">
+      {/* Logo */}
+      <div className="w-full flex mb-5 justify-center">
+        <Link href="/">
+          <Image
+            className="w-[120px] md:w-[150px] lg:w-[180px] h-auto"
+            src="/Logo_1.svg"
+            alt="Logo"
+            width={180}
+            height={150}
+          />
+        </Link>
+      </div>
+
+      {/* Title */}
+      <h2 className="text-2xl font-semibold text-center text-black mb-1">
+        Set new password
+      </h2>
+      <p className="text-center text-text-secondary mb-6 text-sm text-black">
+        Set a new password and continue your journey
+      </p>
+
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* New Password */}
+        <div>
+          <label className="block text-gray-600 text-sm font-semibold text-text-tertiary mb-2">
+            New Password
+          </label>
+          <div className="flex items-center bg-surface-secondary border border-border-secondary rounded-xl px-4 py-3 sm:py-3.5">
+            <Image
+              src="/icons/square-lock-01.svg"
+              alt="lock icon"
+              width={20}
+              height={20}
+              className="w-5 h-5 mr-2"
+            />
+            <input
+              type={showNewPassword ? "text" : "password"}
+              placeholder="Enter password"
+              value={form.newPassword}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, newPassword: e.target.value }))
+              }
+              required
+              className="flex-1 text-black bg-transparent focus:outline-none text-text-secondary text-sm sm:text-base"
+            />
+            <Image
+              src={
+                showNewPassword ? "/icons/view-closed.svg" : "/icons/view.svg"
+              }
+              alt="toggle password"
+              width={20}
+              height={20}
+              onClick={() => setShowNewPassword((p) => !p)}
+              className="w-5 h-5 opacity-70 cursor-pointer ml-2 hover:opacity-100 transition"
+            />
+          </div>
+        </div>
+
+        {/* Confirm Password */}
+        <div>
+          <label className="block text-gray-600 text-gray-600text-sm font-semibold text-text-tertiary mb-2">
+            Confirm Password
+          </label>
+          <div className="flex items-center bg-surface-secondary border border-border-secondary rounded-xl px-4 py-3 sm:py-3.5">
+            <Image
+              src="/icons/square-lock-01.svg"
+              alt="lock icon"
+              width={20}
+              height={20}
+              className="w-5 h-5 mr-2"
+            />
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              placeholder="Retype password"
+              value={form.confirmPassword}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  confirmPassword: e.target.value,
+                }))
+              }
+              required
+              className="flex-1 text-black bg-transparent focus:outline-none text-text-secondary text-sm sm:text-base"
+            />
+            <Image
+              src={
+                showConfirmPassword
+                  ? "/icons/view-closed.svg"
+                  : "/icons/view.svg"
+              }
+              alt="toggle confirm password"
+              width={20}
+              height={20}
+              onClick={() => setShowConfirmPassword((p) => !p)}
+              className="w-5 h-5 opacity-70 cursor-pointer ml-2 hover:opacity-100 transition"
+            />
+          </div>
+        </div>
+
+        {/* Submit */}
+        <button
+          type="submit"
+          className="
+            w-full bg-blue-500 hover:bg-blue-700
+            text-text-inverted font-semibold
+            py-3 sm:py-3.5 rounded-lg transition
+          "
+          disabled={resetStatus === "loading"}
+        >
+          {resetStatus === "loading" ? "Saving..." : "Next"}
+        </button>
+
+        {(localError || resetError) && (
+          <p className="text-red-600 text-sm text-center">
+            {localError || resetError}
+          </p>
+        )}
+
+        {/* Resend + Back */}
+        <div className="flex flex-col items-center gap-3 text-sm text-black mt-1">
+          <p className="text-text-tertiary">
+            Don’t receive OTP?{" "}
+            <button
+              type="button"
+              className="text-blue-600 hover:text-blue-800 font-semibold"
+            >
+              Resend again
+            </button>
+          </p>
+
+          <button
+            type="button"
+            onClick={() => router.push("/signin")}
+            className="flex items-center gap-2 text-text-tertiary text-blue-500 hover:text-blue-700 transition"
+          >
+            <Image
+              src="/icons/arrow-left-01.svg"
+              alt="Back icon"
+              width={20}
+              height={20}
+              className="w-5 h-5"
+            />
+            Back to Login
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="w-full" />}>
+      <ResetPasswordContent />
+    </Suspense>
+  );
+}
