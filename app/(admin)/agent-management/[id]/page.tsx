@@ -27,6 +27,8 @@ type AgentDetail = {
   userInfo: AgentUser;
   licenseNumber: string;
   brokerageName: string;
+  secondaryEmail?: string;
+  secondaryEmailIsCrm?: boolean;
   isActive: boolean;
   hasGrantAccess: boolean;
   powerFormLink?: string;
@@ -99,6 +101,11 @@ export default function AgentDetailsPage() {
   );
   const [status, setStatus] = useState<"idle" | "loading" | "failed">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [secondaryEmail, setSecondaryEmail] = useState("");
+  const [secondaryEmailIsCrm, setSecondaryEmailIsCrm] = useState(false);
+  const [secondaryError, setSecondaryError] = useState<string | null>(null);
+  const [secondarySaving, setSecondarySaving] = useState(false);
+  const [secondarySaved, setSecondarySaved] = useState(false);
   const [hasGrantAccess, setHasGrantAccess] = useState(
     cachedAgent?.hasGrantAccess ?? false,
   );
@@ -136,6 +143,8 @@ export default function AgentDetailsPage() {
         if (!isMounted) return;
         const nextAgent = response.data.data;
         setAgent(nextAgent);
+        setSecondaryEmail(nextAgent.secondaryEmail ?? "");
+        setSecondaryEmailIsCrm(Boolean(nextAgent.secondaryEmail && nextAgent.secondaryEmailIsCrm));
         setHasGrantAccess(nextAgent.hasGrantAccess ?? false);
         const incomingLink = resolvePowerFormLink(nextAgent);
         setRegistrationLink(incomingLink);
@@ -156,6 +165,28 @@ export default function AgentDetailsPage() {
       isMounted = false;
     };
   }, [agentId, dispatch]);
+
+  const saveSecondaryEmail = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!agentId) return;
+    setSecondarySaving(true);
+    setSecondaryError(null);
+    setSecondarySaved(false);
+    try {
+      const response = await apiClient.put<AgentDetailResponse>(`/agent/admin/${agentId}/secondary-email`, {
+        secondaryEmail: secondaryEmail.trim(), secondaryEmailIsCrm: Boolean(secondaryEmail.trim() && secondaryEmailIsCrm),
+      });
+      setAgent(response.data.data);
+      setSecondaryEmail(response.data.data.secondaryEmail ?? "");
+      setSecondaryEmailIsCrm(Boolean(response.data.data.secondaryEmailIsCrm));
+      dispatch(upsertAgent(response.data.data));
+      setSecondarySaved(true);
+    } catch (err) {
+      setSecondaryError(err instanceof Error ? err.message : "Unable to update secondary email.");
+    } finally {
+      setSecondarySaving(false);
+    }
+  };
 
   useEffect(() => {
     if (!copiedTarget) return;
@@ -367,6 +398,22 @@ export default function AgentDetailsPage() {
           {error ?? "No agent found."}
         </div>
       )}
+
+      {agent && <form onSubmit={saveSecondaryEmail} className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
+        <label htmlFor="secondary-email" className="block text-sm font-medium">Secondary Email</label>
+        <input id="secondary-email" type="email" value={secondaryEmail} onChange={(event) => {
+          setSecondaryEmail(event.target.value);
+          if (!event.target.value.trim()) setSecondaryEmailIsCrm(false);
+          setSecondarySaved(false);
+        }} className="w-full border rounded-xl p-3" />
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={secondaryEmailIsCrm} disabled={!secondaryEmail.trim()} onChange={(event) => { setSecondaryEmailIsCrm(event.target.checked); setSecondarySaved(false); }} />
+          This is a CRM address.
+        </label>
+        {secondaryError && <p role="alert" className="text-sm text-red-600">{secondaryError}</p>}
+        {secondarySaved && <p role="status" className="text-sm text-green-700">Secondary email saved.</p>}
+        <button type="submit" disabled={secondarySaving} className="px-4 py-2 bg-blue-500 text-white rounded-xl disabled:opacity-60">{secondarySaving ? "Saving..." : "Save"}</button>
+      </form>}
 
       {/* DocuSign Link Section */}
       <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
