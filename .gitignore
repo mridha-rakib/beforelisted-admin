@@ -33,7 +33,6 @@ yarn-error.log*
 *.pid
 
 # env files (can opt-in for committing if needed)
-.env*
 !.env.example
 !.env.sample
 
@@ -41,7 +40,6 @@ yarn-error.log*
 .vercel
 
 # local IDE/workspace state (do not commit executable editor tasks)
-.vscode/
 .idea/
 *.code-workspace
 
@@ -65,3 +63,4 @@ temp_interactive_push.bat
 
 # Runtime logs
 *.log
+config.bat
